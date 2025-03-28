@@ -1,55 +1,81 @@
-From 5765e9355fabaa360134fe53e3eaebc47f936c4c Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Manuel=20Garc=C3=ADa?= <manugarciaes@gmail.com>
-Date: Fri, 28 Mar 2025 16:14:13 +0000
-Subject: [PATCH] Update config.py with default values for MS Graph API
- settings and adjust Dockerfile
+From e787a8116e479edda6ab3ac66039bc34b9463fce Mon Sep 17 00:00:00 2001
+From: manugarciaes <39256132-manugarciaes@users.noreply.replit.com>
+Date: Fri, 28 Mar 2025 16:38:22 +0000
+Subject: [PATCH 2/2] Fix: Correctly handle Microsoft Graph API scope requests
+ by separating offline_access scope to avoid conflicts.
 
+Replit-Commit-Author: Agent
+Replit-Commit-Session-Id: 3e1ef435-15ad-463e-9b44-a56bb0efefcc
+Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/e9a3439c-b028-478e-b36b-43e8b8ec5753/1a22f7ae-9c1e-4396-aa1f-75bd09749bef.jpg
 ---
- Dockerfile | 11 +++++++----
- config.py  |  4 ++--
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ auth.py   | 9 +++++++--
+ config.py | 5 ++++-
+ 2 files changed, 11 insertions(+), 3 deletions(-)
 
-diff --git a/Dockerfile b/Dockerfile
-index ebffe50..28ccc87 100644
---- a/Dockerfile
-+++ b/Dockerfile
-@@ -9,14 +9,17 @@ RUN apt-get update && apt-get install -y \
-     postgresql-client \
-     && rm -rf /var/lib/apt/lists/*
+diff --git a/auth.py b/auth.py
+index 64c4f59..3bfeabc 100644
+--- a/auth.py
++++ b/auth.py
+@@ -5,7 +5,7 @@ import msal
+ from datetime import datetime, timedelta
+ from app import db
+ from models import User, Calendar
+-from config import MS_GRAPH_CLIENT_ID, MS_GRAPH_CLIENT_SECRET, MS_GRAPH_AUTHORITY, MS_GRAPH_SCOPES, REDIRECT_URI
++from config import MS_GRAPH_CLIENT_ID, MS_GRAPH_CLIENT_SECRET, MS_GRAPH_AUTHORITY, MS_GRAPH_SCOPES, ADDITIONAL_SCOPES, REDIRECT_URI
+ from werkzeug.security import generate_password_hash, check_password_hash
  
--# Copy requirements first to leverage Docker cache
-+# Create a requirements.txt file from pyproject.toml
- COPY pyproject.toml /app/
-+RUN python -c "import re; \
-+    content = open('pyproject.toml').read(); \
-+    deps = re.findall(r'\"([^\"]+)>=([^\"]+)\"', content); \
-+    with open('requirements.txt', 'w') as f: \
-+    f.write('\n'.join([pkg + '>=' + ver for pkg, ver in deps]))"
+ def get_auth_app():
+@@ -23,15 +23,19 @@ def get_auth_url():
+         scopes=MS_GRAPH_SCOPES,
+         redirect_uri=REDIRECT_URI,
+         state=session.get("state", ""),
++        extra_scope_to_consent=ADDITIONAL_SCOPES
+     )
  
- # Install dependencies
- RUN pip install --no-cache-dir --upgrade pip && \
--    pip install poetry && \
--    poetry config virtualenvs.create false && \
--    poetry install --no-interaction --no-ansi
-+    pip install --no-cache-dir -r requirements.txt
- 
- # Copy application code
- COPY . /app/
+ def get_token_from_code(code):
+     """Exchange the authorization code for an access token"""
+     auth_app = get_auth_app()
+     try:
++        # Combine regular scopes with additional scopes for token acquisition
++        all_scopes = MS_GRAPH_SCOPES.copy()
++        
+         result = auth_app.acquire_token_by_authorization_code(
+             code,
+-            scopes=MS_GRAPH_SCOPES,
++            scopes=all_scopes,
+             redirect_uri=REDIRECT_URI
+         )
+         return result
+@@ -43,6 +47,7 @@ def get_token_from_refresh_token(refresh_token):
+     """Get a new access token using the refresh token"""
+     auth_app = get_auth_app()
+     try:
++        # Only use regular scopes for token refresh (offline_access is for initial consent)
+         result = auth_app.acquire_token_by_refresh_token(
+             refresh_token,
+             scopes=MS_GRAPH_SCOPES
 diff --git a/config.py b/config.py
-index 2f8c7f8..5b91561 100644
+index 5b91561..609dad3 100644
 --- a/config.py
 +++ b/config.py
-@@ -1,8 +1,8 @@
- import os
- 
- # Microsoft Graph API settings
--MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID")
--MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET")
-+MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID", "")
-+MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET", "")
+@@ -4,13 +4,16 @@ import os
+ MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID", "")
+ MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET", "")
  MS_GRAPH_AUTHORITY = "https://login.microsoftonline.com/common"
++# Microsoft Graph API resource scopes
  MS_GRAPH_SCOPES = [
-     "offline_access",
+-    "offline_access",
+     "User.Read",
+     "Calendars.Read",
+     "Calendars.ReadWrite"
+ ]
+ 
++# Special scopes to be added separately in auth.py
++ADDITIONAL_SCOPES = ["offline_access"]
++
+ # Redirect URI for OAuth
+ REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost:5000/auth/callback")
+ 
 -- 
 2.47.2
 

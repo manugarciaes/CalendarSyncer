@@ -1,0 +1,232 @@
+From d69e062606549591ea8c162e84b334efbc00f000 Mon Sep 17 00:00:00 2001
+From: manugarciaes <39256132-manugarciaes@users.noreply.replit.com>
+Date: Fri, 28 Mar 2025 16:34:33 +0000
+Subject: [PATCH 1/2] Migrate database to PostgreSQL; address resulting
+ application context errors.
+
+Replit-Commit-Author: Agent
+Replit-Commit-Session-Id: 3e1ef435-15ad-463e-9b44-a56bb0efefcc
+Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/e9a3439c-b028-478e-b36b-43e8b8ec5753/42ee2c0f-f975-4829-b74b-1c3de9b60cf4.jpg
+---
+ ...t-up-db-1-db-1-2025-03-2-1743179587854.txt | 208 ++++++++++++++++++
+ 1 file changed, 208 insertions(+)
+ create mode 100644 attached_assets/Pasted-db-1-PostgreSQL-init-process-complete-ready-for-start-up-db-1-db-1-2025-03-2-1743179587854.txt
+
+diff --git a/attached_assets/Pasted-db-1-PostgreSQL-init-process-complete-ready-for-start-up-db-1-db-1-2025-03-2-1743179587854.txt b/attached_assets/Pasted-db-1-PostgreSQL-init-process-complete-ready-for-start-up-db-1-db-1-2025-03-2-1743179587854.txt
+new file mode 100644
+index 0000000..02731f8
+--- /dev/null
++++ b/attached_assets/Pasted-db-1-PostgreSQL-init-process-complete-ready-for-start-up-db-1-db-1-2025-03-2-1743179587854.txt
+@@ -0,0 +1,208 @@
++db-1      | PostgreSQL init process complete; ready for start up.
++db-1      | 
++db-1      | 2025-03-28 16:31:47.680 UTC [1] LOG:  starting PostgreSQL 14.17 (Debian 14.17-1.pgdg120+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
++db-1      | 2025-03-28 16:31:47.680 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
++db-1      | 2025-03-28 16:31:47.680 UTC [1] LOG:  listening on IPv6 address "::", port 5432
++db-1      | 2025-03-28 16:31:47.681 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
++db-1      | 2025-03-28 16:31:47.683 UTC [63] LOG:  database system was shut down at 2025-03-28 16:31:47 UTC
++db-1      | 2025-03-28 16:31:47.686 UTC [1] LOG:  database system is ready to accept connections
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
++webapp-1  | PostgreSQL is up - executing command
++webapp-1  | DEBUG:root:Application initialized and ready to serve requests
++webapp-1  | Traceback (most recent call last):
++webapp-1  |   File "<string>", line 1, in <module>
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 900, in create_all
++webapp-1  |     self._call_for_binds(bind_key, "create_all")
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 871, in _call_for_binds
++webapp-1  |     engine = self.engines[key]
++webapp-1  |              ^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 687, in engines
++webapp-1  |     app = current_app._get_current_object()  # type: ignore[attr-defined]
++webapp-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++webapp-1  |   File "/usr/local/lib/python3.11/site-packages/werkzeug/local.py", line 519, in _get_current_object
++webapp-1  |     raise RuntimeError(unbound_message) from None
++webapp-1  | RuntimeError: Working outside of application context.
++webapp-1  | 
++webapp-1  | This typically means that you attempted to use functionality that needed
++webapp-1  | the current application. To solve this, set up an application context
++webapp-1  | with app.app_context(). See the documentation for more information.
++webapp-1 exited with code 1
+\ No newline at end of file
+-- 
+2.47.2
+
