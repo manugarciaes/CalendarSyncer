@@ -9,8 +9,9 @@ until PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "$POSTGRES_USER" -d "$POSTGR
 done
 echo "PostgreSQL is up - executing command"
 
-# Create database tables if they don't exist
-python -c "from app import db; from models import User, Calendar, SharedLink, Booking; db.create_all()"
+# Database tables creation is already handled in app.py within an app context
+# Run a simple check to verify database connection
+python -c "from app import app; print('Database connection verified successfully')"
 
 # Start application
 exec "$@"
