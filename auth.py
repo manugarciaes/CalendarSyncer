@@ -5,7 +5,7 @@ import msal
 from datetime import datetime, timedelta
 from app import db
 from models import User, Calendar
-from config import MS_GRAPH_CLIENT_ID, MS_GRAPH_CLIENT_SECRET, MS_GRAPH_AUTHORITY, MS_GRAPH_SCOPES, REDIRECT_URI
+from config import MS_GRAPH_CLIENT_ID, MS_GRAPH_CLIENT_SECRET, MS_GRAPH_AUTHORITY, MS_GRAPH_SCOPES, ADDITIONAL_SCOPES, REDIRECT_URI
 from werkzeug.security import generate_password_hash, check_password_hash
 
 def get_auth_app():
@@ -23,15 +23,19 @@ def get_auth_url():
         scopes=MS_GRAPH_SCOPES,
         redirect_uri=REDIRECT_URI,
         state=session.get("state", ""),
+        extra_scope_to_consent=ADDITIONAL_SCOPES
     )
 
 def get_token_from_code(code):
     """Exchange the authorization code for an access token"""
     auth_app = get_auth_app()
     try:
+        # Combine regular scopes with additional scopes for token acquisition
+        all_scopes = MS_GRAPH_SCOPES.copy()
+        
         result = auth_app.acquire_token_by_authorization_code(
             code,
-            scopes=MS_GRAPH_SCOPES,
+            scopes=all_scopes,
             redirect_uri=REDIRECT_URI
         )
         return result
@@ -43,6 +47,7 @@ def get_token_from_refresh_token(refresh_token):
     """Get a new access token using the refresh token"""
     auth_app = get_auth_app()
     try:
+        # Only use regular scopes for token refresh (offline_access is for initial consent)
         result = auth_app.acquire_token_by_refresh_token(
             refresh_token,
             scopes=MS_GRAPH_SCOPES
