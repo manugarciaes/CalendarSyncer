@@ -9,13 +9,12 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a requirements.txt file from pyproject.toml
-COPY pyproject.toml /app/
-RUN python -c "import re; \
-    content = open('pyproject.toml').read(); \
-    deps = re.findall(r'\"([^\"]+)>=([^\"]+)\"', content); \
-    with open('requirements.txt', 'w') as f: \
-        f.write('\n'.join([pkg + '>=' + ver for pkg, ver in deps]))"
+# Copy files needed to generate requirements.txt
+COPY pyproject.toml generate_requirements.py /app/
+
+# Make the script executable and run it to generate requirements.txt
+RUN chmod +x /app/generate_requirements.py && \
+    python /app/generate_requirements.py
 
 # Install dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
