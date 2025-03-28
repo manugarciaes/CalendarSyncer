@@ -7,11 +7,11 @@
             <div class="card-body">
                 <h2 class="text-center mb-4">
                     <i data-feather="calendar-plus" class="me-2"></i>
-                    Add Outlook Calendar
+                    Add Calendar
                 </h2>
                 
                 <div class="text-center mb-4">
-                    <p>Connect your Microsoft Outlook calendar to sync appointments and availability.</p>
+                    <p>Add your calendar to sync appointments and availability using an ICS feed URL.</p>
                 </div>
                 
                 <div class="card bg-dark border-secondary mb-4">
@@ -22,16 +22,16 @@
                         </h5>
                         <ol class="list-group list-group-numbered mb-0">
                             <li class="list-group-item bg-dark text-light">
-                                Click the "Connect with Microsoft" button below
+                                Copy your calendar's ICS feed URL from your calendar provider
                             </li>
                             <li class="list-group-item bg-dark text-light">
-                                Sign in to your Microsoft account when prompted
+                                Enter the URL and calendar name below
                             </li>
                             <li class="list-group-item bg-dark text-light">
-                                Allow this application to access your calendar
+                                Set how often you want to refresh calendar data
                             </li>
                             <li class="list-group-item bg-dark text-light">
-                                You'll be redirected back to add your calendar for synchronization
+                                Click "Add Calendar" to start syncing
                             </li>
                         </ol>
                     </div>
@@ -40,41 +40,63 @@
                 <div class="card bg-dark border-secondary mb-4">
                     <div class="card-body">
                         <h5 class="card-title">
-                            <i data-feather="shield" class="me-2"></i>
-                            Privacy & Security
+                            <i data-feather="link" class="me-2"></i>
+                            Where to find ICS URLs
                         </h5>
                         <ul class="list-group mb-0">
                             <li class="list-group-item bg-dark text-light">
-                                <i data-feather="check" class="me-2"></i>
-                                We only request read/write access to your calendars
+                                <strong>Google Calendar:</strong> Calendar Settings → "Secret address in iCal format"
                             </li>
                             <li class="list-group-item bg-dark text-light">
-                                <i data-feather="check" class="me-2"></i>
-                                No personal information is stored except calendar events
+                                <strong>Outlook:</strong> Calendar Settings → Shared Calendars → Publish → ICS link
                             </li>
                             <li class="list-group-item bg-dark text-light">
-                                <i data-feather="check" class="me-2"></i>
-                                You can revoke access at any time from your Microsoft account
+                                <strong>Apple Calendar:</strong> Calendar → Share → Public Calendar → Copy link
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                <strong>Other providers:</strong> Look for "ICS", "iCal" or "Calendar Feed" options
                             </li>
                         </ul>
                     </div>
                 </div>
                 
-                <div class="text-center mt-4">
-                    <form method="post" action="{{ url_for('add_calendar') }}">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i data-feather="external-link" class="me-2"></i>
-                            Connect with Microsoft
-                        </button>
-                    </form>
+                <form method="post" action="{{ url_for('add_calendar') }}" class="mt-4">
+                    <div class="mb-3">
+                        <label for="calendar_name" class="form-label">Calendar Name</label>
+                        <input type="text" class="form-control" id="calendar_name" name="calendar_name" required 
+                               placeholder="e.g., Work Calendar, Personal Schedule">
+                    </div>
                     
-                    <div class="mt-3">
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-link">
+                    <div class="mb-3">
+                        <label for="ics_url" class="form-label">ICS Feed URL</label>
+                        <input type="url" class="form-control" id="ics_url" name="ics_url" required
+                               placeholder="https://example.com/calendar.ics">
+                        <div class="form-text text-muted">
+                            Must be a valid HTTP or HTTPS URL to an ICS calendar feed
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="refresh_interval" class="form-label">Refresh Interval (minutes)</label>
+                        <input type="number" class="form-control" id="refresh_interval" name="refresh_interval" 
+                               value="60" min="1" max="1440">
+                        <div class="form-text text-muted">
+                            How often to check for calendar updates (recommended: 60 minutes)
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i data-feather="plus-circle" class="me-2"></i>
+                            Add Calendar
+                        </button>
+                        
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
                             <i data-feather="arrow-left" class="me-2"></i>
                             Back to Dashboard
                         </a>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     </div>

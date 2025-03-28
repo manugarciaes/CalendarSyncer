@@ -30,24 +30,65 @@
                 <div class="list-group">
                     {% for calendar in calendars %}
                     {% if calendar.active %}
-                    <div class="list-group-item list-group-item-action bg-dark text-light d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-1">{{ calendar.name }}</h5>
-                            <small>Last synced: 
-                                {% if calendar.last_synced %}
-                                {{ calendar.last_synced.strftime('%Y-%m-%d %H:%M') }}
-                                {% else %}
-                                Never
-                                {% endif %}
-                            </small>
-                        </div>
-                        <div>
-                            <form action="{{ url_for('delete_calendar', calendar_id=calendar.id) }}" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                        onclick="return confirm('Are you sure you want to remove this calendar?')">
-                                    <i data-feather="trash-2"></i>
+                    <div class="list-group-item list-group-item-action bg-dark text-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">{{ calendar.name }}</h5>
+                                <small>Last synced: 
+                                    {% if calendar.last_synced %}
+                                    {{ calendar.last_synced.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                    Never
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-info me-1" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#calendar-settings-{{ calendar.id }}" 
+                                        aria-expanded="false">
+                                    <i data-feather="settings"></i>
                                 </button>
-                            </form>
+                                <form action="{{ url_for('delete_calendar', calendar_id=calendar.id) }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                            onclick="return confirm('Are you sure you want to remove this calendar?')">
+                                        <i data-feather="trash-2"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="collapse mt-2" id="calendar-settings-{{ calendar.id }}">
+                            <div class="card card-body bg-dark border-secondary">
+                                <h6 class="card-subtitle mb-2 text-muted">Calendar Settings</h6>
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted">Type: {{ calendar.calendar_type|upper }}</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted d-block">ICS URL:</small>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control form-control-sm" value="{{ calendar.ics_url }}" readonly>
+                                        <button class="btn btn-outline-secondary copy-btn" type="button" data-copy="{{ calendar.ics_url }}">
+                                            <i data-feather="copy" class="small-icon"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <form action="{{ url_for('update_calendar_refresh', calendar_id=calendar.id) }}" method="post">
+                                    <div class="mb-3">
+                                        <label for="refresh-interval-{{ calendar.id }}" class="form-label small">Refresh Interval (minutes)</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control" id="refresh-interval-{{ calendar.id }}" 
+                                                   name="refresh_interval" min="1" max="1440"
+                                                   value="{{ calendar.refresh_interval }}">
+                                            <button class="btn btn-primary" type="submit">Update</button>
+                                        </div>
+                                        <div class="form-text">Current: {{ calendar.refresh_interval }} minutes</div>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                     {% endif %}
@@ -182,24 +223,50 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Copy link to clipboard functionality
-        const copyButtons = document.querySelectorAll('.copy-link-btn');
-        copyButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const link = this.getAttribute('data-link');
-                navigator.clipboard.writeText(link).then(() => {
-                    // Change button text temporarily
-                    const originalHTML = this.innerHTML;
-                    this.innerHTML = '<i data-feather="check"></i>';
-                    feather.replace();
-                    
-                    setTimeout(() => {
-                        this.innerHTML = originalHTML;
+        // Generic clipboard copy function
+        function setupCopyButtons(selector, dataAttribute) {
+            const buttons = document.querySelectorAll(selector);
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const textToCopy = this.getAttribute(dataAttribute);
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        // Change button text temporarily
+                        const originalHTML = this.innerHTML;
+                        this.innerHTML = '<i data-feather="check"></i>';
                         feather.replace();
-                    }, 2000);
+                        
+                        setTimeout(() => {
+                            this.innerHTML = originalHTML;
+                            feather.replace();
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy: ', err);
+                    });
                 });
             });
-        });
+        }
+        
+        // Setup shared link copy buttons
+        setupCopyButtons('.copy-link-btn', 'data-link');
+        
+        // Setup ICS URL copy buttons
+        setupCopyButtons('.copy-btn', 'data-copy');
+        
+        // Make sure feather icons are initialized
+        if (typeof feather !== 'undefined') {
+            feather.replace({ 'class': 'small-icon', width: 16, height: 16 });
+        }
     });
 </script>
+
+<style>
+    .small-icon {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
+    }
+</style>
 {% endblock %}

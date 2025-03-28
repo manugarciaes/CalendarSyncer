@@ -3,12 +3,17 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 import pytz
+import re
 from flask import render_template, request, redirect, url_for, session, flash, jsonify, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from models import User, Calendar, SharedLink, Booking
-from auth import get_auth_url, get_token_from_code, register_user, login_user
-from calendar_sync import get_calendar_events, get_free_slots, create_booking, get_booking_analytics, get_calendar_analytics
+from auth import register_user, login_user
+from calendar_sync import (
+    get_calendar_events, get_free_slots, create_booking, 
+    get_booking_analytics, get_calendar_analytics,
+    refresh_calendar_events, start_scheduler, update_calendar_refresh_interval
+)
 
 def init_routes(app):
     @app.route('/')
@@ -87,90 +92,100 @@ def init_routes(app):
 
     @app.route('/add_calendar', methods=['GET', 'POST'])
     def add_calendar():
-        """Add a new Outlook calendar"""
+        """Add a new calendar using ICS URL"""
         if 'user_id' not in session:
             flash('Please log in to add a calendar', 'warning')
             return redirect(url_for('login'))
         
         if request.method == 'POST':
-            # Generate a state parameter to prevent CSRF
-            state = str(uuid.uuid4())
-            session['state'] = state
+            user_id = session['user_id']
+            calendar_name = request.form.get('calendar_name')
+            ics_url = request.form.get('ics_url')
+            refresh_interval = request.form.get('refresh_interval', 60)
             
-            # Redirect to Microsoft authentication
-            auth_url = get_auth_url()
-            return redirect(auth_url)
+            # Validate inputs
+            if not calendar_name or not ics_url:
+                flash('Calendar name and ICS URL are required', 'danger')
+                return render_template('add_calendar.html')
+            
+            try:
+                # Validate the refresh interval is a positive integer
+                refresh_interval = int(refresh_interval)
+                if refresh_interval < 1:
+                    refresh_interval = 60  # Default to 60 minutes if invalid
+            except ValueError:
+                refresh_interval = 60  # Default to 60 minutes if not a valid integer
+            
+            # Validate URL format
+            if not re.match(r'^https?://', ics_url):
+                flash('ICS URL must be a valid HTTP or HTTPS URL', 'danger')
+                return render_template('add_calendar.html')
+            
+            try:
+                # Create the calendar record
+                calendar = Calendar(
+                    user_id=user_id,
+                    name=calendar_name,
+                    ics_url=ics_url,
+                    calendar_type='ics',
+                    refresh_interval=refresh_interval,
+                    active=True,
+                    created_at=datetime.now()
+                )
+                db.session.add(calendar)
+                db.session.flush()  # Get the ID without committing
+                
+                # Try to fetch the calendar events to validate the URL
+                events = refresh_calendar_events(calendar)
+                if events is None:
+                    db.session.rollback()
+                    flash('Failed to fetch events from the provided ICS URL. Please check the URL and try again.', 'danger')
+                    return render_template('add_calendar.html')
+                
+                # If we got here, the URL is valid
+                db.session.commit()
+                
+                # Schedule the refresh job for this calendar
+                start_scheduler()  # This will start the scheduler if it's not already running
+                
+                flash(f'Calendar "{calendar_name}" added successfully', 'success')
+                return redirect(url_for('dashboard'))
+                
+            except Exception as e:
+                db.session.rollback()
+                logging.error(f"Error adding calendar: {e}")
+                flash('An error occurred while adding the calendar', 'danger')
+                return render_template('add_calendar.html')
         
         return render_template('add_calendar.html')
 
-    @app.route('/auth/callback')
-    def auth_callback():
-        """Handle the callback from Microsoft authentication"""
+    @app.route('/update_calendar_refresh/<int:calendar_id>', methods=['POST'])
+    def update_calendar_refresh(calendar_id):
+        """Update the refresh interval for a calendar"""
         if 'user_id' not in session:
-            flash('Your session has expired. Please log in again.', 'warning')
+            flash('Please log in to update calendar settings', 'warning')
             return redirect(url_for('login'))
         
-        # Check for error in the callback
-        error = request.args.get('error')
-        if error:
-            error_description = request.args.get('error_description', 'Unknown error')
-            flash(f'Authentication error: {error_description}', 'danger')
-            return redirect(url_for('dashboard'))
+        user_id = session['user_id']
+        refresh_interval = request.form.get('refresh_interval', 60)
         
-        # Get the authorization code
-        code = request.args.get('code')
-        if not code:
-            flash('No authorization code received', 'danger')
-            return redirect(url_for('dashboard'))
-        
-        # Exchange code for tokens
-        token_data = get_token_from_code(code)
-        if not token_data or 'access_token' not in token_data:
-            flash('Failed to get access token', 'danger')
-            return redirect(url_for('dashboard'))
-        
-        # Get user info from the token data
-        user_info = token_data.get('id_token_claims', {})
-        outlook_email = user_info.get('email', 'Unknown')
-        
-        # Make a request to get the default calendar
-        headers = {
-            'Authorization': f'Bearer {token_data["access_token"]}',
-            'Content-Type': 'application/json'
-        }
-        
-        import requests
+        # Validate inputs
         try:
-            # Get default calendar
-            response = requests.get('https://graph.microsoft.com/v1.0/me/calendar', headers=headers)
-            if response.status_code != 200:
-                flash('Failed to get calendar information', 'danger')
-                return redirect(url_for('dashboard'))
-            
-            calendar_data = response.json()
-            calendar_name = calendar_data.get('name', f"Calendar for {outlook_email}")
-            calendar_id = calendar_data.get('id')
-            
-            # Store the tokens and calendar info
-            from auth import store_calendar_tokens
-            calendar = store_calendar_tokens(
-                user_id=session['user_id'],
-                calendar_name=calendar_name,
-                outlook_id=calendar_id,
-                token_data=token_data
-            )
-            
-            if calendar:
-                flash(f'Successfully added calendar: {calendar_name}', 'success')
-            else:
-                flash('Failed to store calendar information', 'danger')
-            
-            return redirect(url_for('dashboard'))
+            refresh_interval = int(refresh_interval)
+            if refresh_interval < 1:
+                refresh_interval = 60  # Default to 60 minutes if invalid
+        except ValueError:
+            refresh_interval = 60  # Default to 60 minutes if not a valid integer
         
-        except Exception as e:
-            logging.error(f"Error in auth callback: {e}")
-            flash('An error occurred during calendar setup', 'danger')
-            return redirect(url_for('dashboard'))
+        # Update the calendar refresh interval
+        success, error = update_calendar_refresh_interval(calendar_id, refresh_interval)
+        
+        if success:
+            flash(f'Calendar refresh interval updated to {refresh_interval} minutes', 'success')
+        else:
+            flash(f'Failed to update calendar refresh interval: {error}', 'danger')
+        
+        return redirect(url_for('dashboard'))
 
     @app.route('/create_shared_link', methods=['POST'])
     def create_shared_link():

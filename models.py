@@ -22,12 +22,12 @@ class Calendar(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    outlook_id = db.Column(db.String(256), nullable=False)
-    ms_graph_token = db.Column(db.Text)
-    refresh_token = db.Column(db.Text)
-    token_expiry = db.Column(db.DateTime)
+    ics_url = db.Column(db.String(512), nullable=False)
+    calendar_type = db.Column(db.String(50), default="ics")  # Type of calendar (ics, google, outlook, etc.)
+    refresh_interval = db.Column(db.Integer, default=60)  # Refresh interval in minutes
     last_synced = db.Column(db.DateTime)
     active = db.Column(db.Boolean, default=True)
+    cached_events = db.Column(db.Text)  # Store cached events as JSON
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -66,7 +66,7 @@ class Booking(db.Model):
     end_time = db.Column(db.DateTime, nullable=False)
     subject = db.Column(db.String(256), nullable=False)
     description = db.Column(db.Text)
-    outlook_event_ids = db.Column(db.Text)  # Store comma-separated list of event IDs
+    status = db.Column(db.String(20), default="confirmed")  # Status of the booking (confirmed, cancelled, etc.)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     shared_link = db.relationship('SharedLink', backref='bookings')

@@ -1,81 +1,121 @@
 import logging
 import requests
+import json
 from datetime import datetime, timedelta
 import pytz
 from collections import Counter, defaultdict
-from auth import refresh_calendar_token
+from apscheduler.schedulers.background import BackgroundScheduler
+from icalendar import Calendar as ICalendar
 from models import Calendar, Booking, SharedLink
 from app import db
 
+# Create a background scheduler for refreshing ICS feeds
+scheduler = BackgroundScheduler(daemon=True)
+
 def get_calendar_events(calendar, start_date, end_date):
-    """Fetch events from an Outlook calendar using Microsoft Graph API"""
-    # Refresh the token if needed
-    access_token = refresh_calendar_token(calendar)
-    if not access_token:
-        logging.error(f"Failed to get access token for calendar {calendar.id}")
-        return None
+    """Fetch events from a calendar using its ICS feed"""
+    # First check if we have cached events
+    if calendar.cached_events:
+        try:
+            cached_data = json.loads(calendar.cached_events)
+            return cached_data
+        except Exception as e:
+            logging.error(f"Error parsing cached events for calendar {calendar.id}: {e}")
     
-    # Format dates for Microsoft Graph API
-    start_date_str = start_date.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    end_date_str = end_date.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    
-    # Prepare the request
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json'
-    }
-    
-    # Request parameters
-    params = {
-        'startDateTime': start_date_str,
-        'endDateTime': end_date_str,
-        '$select': 'subject,start,end,isAllDay,showAs,id'
-    }
-    
-    # Make the request to Microsoft Graph API
+    # If no cache or error parsing it, fetch from ICS
+    return refresh_calendar_events(calendar)
+
+def refresh_calendar_events(calendar):
+    """Refresh events from an ICS feed and update the cache"""
     try:
-        response = requests.get(
-            f'https://graph.microsoft.com/v1.0/me/calendars/{calendar.outlook_id}/calendarView',
-            headers=headers,
-            params=params
-        )
+        # Make the request to the ICS URL
+        response = requests.get(calendar.ics_url)
         
         if response.status_code == 200:
-            return response.json().get('value', [])
+            # Parse the ICS data
+            cal = ICalendar.from_ical(response.content)
+            
+            # Extract events
+            events = []
+            for component in cal.walk():
+                if component.name == "VEVENT":
+                    # Extract start and end times
+                    start_dt = component.get('dtstart').dt
+                    end_dt = component.get('dtend').dt
+                    
+                    # Check if they are date objects (all-day events) or datetime objects
+                    is_all_day = isinstance(start_dt, datetime.date) and not isinstance(start_dt, datetime)
+                    
+                    # Convert date objects to datetime for consistency
+                    if is_all_day:
+                        if not isinstance(start_dt, datetime):
+                            start_dt = datetime.combine(start_dt, datetime.min.time(), tzinfo=pytz.UTC)
+                        if not isinstance(end_dt, datetime):
+                            end_dt = datetime.combine(end_dt, datetime.min.time(), tzinfo=pytz.UTC)
+                    
+                    event = {
+                        'id': str(component.get('uid', '')),
+                        'subject': str(component.get('summary', 'No Title')),
+                        'start': start_dt,
+                        'end': end_dt,
+                        'is_all_day': is_all_day,
+                        'status': str(component.get('status', 'CONFIRMED')),
+                        'description': str(component.get('description', '')),
+                        'location': str(component.get('location', '')),
+                        'organizer': str(component.get('organizer', '')),
+                        'recurrence': component.get('rrule', None)
+                    }
+                    
+                    # Add busy/free status (ICS doesn't have this explicitly, assume all events are busy)
+                    event['show_as'] = 'busy'
+                    
+                    events.append(event)
+            
+            # Update the cache
+            calendar.cached_events = json.dumps(events, default=str)
+            calendar.last_synced = datetime.now()
+            db.session.commit()
+            
+            return events
         else:
-            logging.error(f"Error fetching calendar events: {response.status_code} - {response.text}")
+            logging.error(f"Error fetching ICS feed: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        logging.error(f"Exception fetching calendar events: {e}")
+        logging.error(f"Exception fetching ICS feed: {e}")
         return None
 
 def create_calendar_event(calendar, event_data):
-    """Create an event in an Outlook calendar using Microsoft Graph API"""
-    # Refresh the token if needed
-    access_token = refresh_calendar_token(calendar)
-    if not access_token:
-        logging.error(f"Failed to get access token for calendar {calendar.id}")
-        return None
+    """
+    Create a booking event
     
-    # Prepare the request
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json'
-    }
+    Note: Since we're using ICS feeds which are typically read-only,
+    this function doesn't actually create an event in the original calendar.
+    Instead, it returns a simulated success response with a generated event ID.
     
-    # Make the request to Microsoft Graph API
+    In a real-world scenario, you would implement methods to add events to the 
+    source calendar through their respective APIs (Google, Outlook, etc.)
+    or use email notifications to notify the calendar owner about the booking.
+    """
     try:
-        response = requests.post(
-            f'https://graph.microsoft.com/v1.0/me/calendars/{calendar.outlook_id}/events',
-            headers=headers,
-            json=event_data
-        )
+        # Generate a unique ID for the event
+        event_id = f"booking_{datetime.now().strftime('%Y%m%d%H%M%S')}_{calendar.id}"
         
-        if response.status_code in [200, 201]:
-            return response.json()
-        else:
-            logging.error(f"Error creating calendar event: {response.status_code} - {response.text}")
-            return None
+        # Simulate a successful response
+        response = {
+            'id': event_id,
+            'subject': event_data['subject'],
+            'start': event_data['start'],
+            'end': event_data['end'],
+            'attendees': event_data['attendees'],
+            'status': 'confirmed'
+        }
+        
+        logging.info(f"Created booking event for calendar {calendar.id}: {event_id}")
+        
+        # In a real implementation, you would send this data to the calendar provider
+        # or send email notifications to the calendar owner
+        
+        return response
     except Exception as e:
         logging.error(f"Exception creating calendar event: {e}")
         return None
@@ -208,7 +248,8 @@ def create_booking(shared_link_id, customer_name, customer_email, start_time, en
             start_time=start_time,
             end_time=end_time,
             subject=subject,
-            description=description
+            description=description,
+            status="confirmed"
         )
         db.session.add(booking)
         db.session.flush()  # Get the booking ID without committing
@@ -255,8 +296,7 @@ def create_booking(shared_link_id, customer_name, customer_email, start_time, en
                 db.session.rollback()
                 return None, "Failed to create events in all calendars"
         
-        # Store the event IDs in the booking
-        booking.outlook_event_ids = ','.join(event_ids)
+        # No need to store event IDs in the booking as we've removed that field
         db.session.commit()
         
         return booking, None
@@ -511,3 +551,72 @@ def get_calendar_analytics(user_id, calendar_id=None, start_date=None, end_date=
     except Exception as e:
         logging.error(f"Error generating calendar analytics: {e}")
         return None
+
+def setup_calendar_refresh_jobs():
+    """Set up background jobs to refresh calendar events at regular intervals"""
+    try:
+        # Get all active calendars
+        calendars = Calendar.query.filter_by(active=True).all()
+        
+        # Schedule jobs for each calendar based on refresh_interval
+        for calendar in calendars:
+            # Schedule the job with the calendar's refresh interval (in minutes)
+            job_id = f"refresh_calendar_{calendar.id}"
+            
+            # Remove any existing job with this ID
+            scheduler.remove_job(job_id, ignore_if_not_exists=True)
+            
+            # Schedule a new job
+            scheduler.add_job(
+                refresh_calendar_events,
+                'interval',
+                minutes=calendar.refresh_interval,
+                id=job_id,
+                replace_existing=True,
+                args=[calendar]
+            )
+            
+            logging.info(f"Scheduled refresh job for calendar {calendar.id} ('{calendar.name}') every {calendar.refresh_interval} minutes")
+    
+    except Exception as e:
+        logging.error(f"Error setting up calendar refresh jobs: {e}")
+
+def start_scheduler():
+    """Start the background scheduler for calendar refreshing"""
+    if not scheduler.running:
+        scheduler.start()
+        setup_calendar_refresh_jobs()
+        logging.info("Calendar refresh scheduler started")
+
+def update_calendar_refresh_interval(calendar_id, refresh_interval):
+    """Update the refresh interval for a calendar and reschedule the job"""
+    try:
+        calendar = Calendar.query.get(calendar_id)
+        if not calendar:
+            return False, "Calendar not found"
+        
+        # Update the refresh interval
+        calendar.refresh_interval = refresh_interval
+        db.session.commit()
+        
+        # Reschedule the job
+        if scheduler.running:
+            # Remove existing job
+            job_id = f"refresh_calendar_{calendar.id}"
+            scheduler.remove_job(job_id, ignore_if_not_exists=True)
+            
+            # Add new job with updated interval
+            scheduler.add_job(
+                refresh_calendar_events,
+                'interval',
+                minutes=refresh_interval,
+                id=job_id,
+                replace_existing=True,
+                args=[calendar]
+            )
+        
+        return True, None
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating calendar refresh interval: {e}")
+        return False, str(e)
