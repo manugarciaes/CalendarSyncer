@@ -1,0 +1,88 @@
+/* Custom styles for Calendar Sync app */
+
+/* FullCalendar customizations */
+.fc-theme-standard {
+    --fc-border-color: rgba(255, 255, 255, 0.2);
+    --fc-button-bg-color: var(--bs-primary);
+    --fc-button-border-color: var(--bs-primary);
+    --fc-button-hover-bg-color: var(--bs-primary-dark);
+    --fc-button-hover-border-color: var(--bs-primary-dark);
+    --fc-event-bg-color: var(--bs-success);
+    --fc-event-border-color: var(--bs-success);
+}
+
+.fc .fc-toolbar-title {
+    font-size: 1.25rem;
+}
+
+.fc .fc-button {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.fc-event {
+    cursor: pointer;
+    transition: transform 0.1s ease-in-out;
+}
+
+.fc-event:hover {
+    transform: scale(1.01);
+}
+
+/* General spacing and layout */
+.card {
+    margin-bottom: 1.5rem;
+    border-radius: 0.5rem;
+}
+
+.btn {
+    border-radius: 0.375rem;
+}
+
+/* Icon styling */
+.feather {
+    vertical-align: text-bottom;
+}
+
+/* Custom styling for forms */
+.form-control, .form-select {
+    background-color: var(--bs-dark);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--bs-light);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--bs-dark);
+    color: white;
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Custom button states */
+.btn-primary:hover {
+    background-color: var(--bs-primary-dark, #0a58ca);
+    border-color: var(--bs-primary-dark, #0a58ca);
+}
+
+/* List group customizations */
+.list-group-item {
+    border-color: rgba(255, 255, 255, 0.125);
+}
+
+/* Calendar event styling */
+.fc-event-main {
+    padding: 0.2rem 0.5rem;
+    font-weight: 500;
+}
+
+/* Media queries for smaller screens */
+@media (max-width: 768px) {
+    .fc-header-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .fc .fc-toolbar-title {
+        font-size: 1.1rem;
+    }
+}

@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card bg-dark shadow">
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <i data-feather="alert-circle" style="width: 64px; height: 64px; color: #dc3545;"></i>
+                </div>
+                <h1 class="display-5 mb-4">Server Error</h1>
+                <p class="lead">Sorry, an unexpected error has occurred. Our team has been notified.</p>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i data-feather="refresh-cw" class="me-2"></i>
+                        Try Again
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

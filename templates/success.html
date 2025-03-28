@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card bg-dark shadow">
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <i data-feather="check-circle" style="width: 64px; height: 64px; color: #28a745;"></i>
+                </div>
+                <h1 class="display-5 mb-4">Booking Confirmed!</h1>
+                <p class="lead">Your appointment has been successfully scheduled.</p>
+                
+                <div class="card bg-dark border-secondary mt-4 mb-4">
+                    <div class="card-body text-start">
+                        <h3 class="card-title h5">
+                            <i data-feather="info" class="me-2"></i>
+                            Booking Details
+                        </h3>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item bg-dark text-light">
+                                <strong>Subject:</strong> {{ booking.subject }}
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                <strong>Date:</strong> {{ booking.start_time.strftime('%A, %B %d, %Y') }}
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                <strong>Time:</strong> {{ booking.start_time.strftime('%I:%M %p') }} - {{ booking.end_time.strftime('%I:%M %p') }}
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                <strong>Name:</strong> {{ booking.customer_name }}
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                <strong>Email:</strong> {{ booking.customer_email }}
+                            </li>
+                            {% if booking.description %}
+                            <li class="list-group-item bg-dark text-light">
+                                <strong>Notes:</strong> {{ booking.description }}
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info" role="alert">
+                    <i data-feather="mail" class="me-2"></i>
+                    A calendar invitation has been sent to your email address.
+                </div>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('customer_view', link_id=shared_link.link_id) }}" class="btn btn-primary">
+                        <i data-feather="calendar" class="me-2"></i>
+                        Book Another Appointment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card bg-dark shadow">
+            <div class="card-body">
+                <h2 class="text-center mb-4">
+                    <i data-feather="calendar-plus" class="me-2"></i>
+                    Add Outlook Calendar
+                </h2>
+                
+                <div class="text-center mb-4">
+                    <p>Connect your Microsoft Outlook calendar to sync appointments and availability.</p>
+                </div>
+                
+                <div class="card bg-dark border-secondary mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i data-feather="info" class="me-2"></i>
+                            How it works
+                        </h5>
+                        <ol class="list-group list-group-numbered mb-0">
+                            <li class="list-group-item bg-dark text-light">
+                                Click the "Connect with Microsoft" button below
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                Sign in to your Microsoft account when prompted
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                Allow this application to access your calendar
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                You'll be redirected back to add your calendar for synchronization
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <div class="card bg-dark border-secondary mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i data-feather="shield" class="me-2"></i>
+                            Privacy & Security
+                        </h5>
+                        <ul class="list-group mb-0">
+                            <li class="list-group-item bg-dark text-light">
+                                <i data-feather="check" class="me-2"></i>
+                                We only request read/write access to your calendars
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                <i data-feather="check" class="me-2"></i>
+                                No personal information is stored except calendar events
+                            </li>
+                            <li class="list-group-item bg-dark text-light">
+                                <i data-feather="check" class="me-2"></i>
+                                You can revoke access at any time from your Microsoft account
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <form method="post" action="{{ url_for('add_calendar') }}">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i data-feather="external-link" class="me-2"></i>
+                            Connect with Microsoft
+                        </button>
+                    </form>
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-link">
+                            <i data-feather="arrow-left" class="me-2"></i>
+                            Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

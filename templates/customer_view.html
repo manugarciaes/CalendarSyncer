@@ -1,0 +1,275 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="h3">{{ shared_link.name }}</h1>
+        {% if shared_link.description %}
+        <p>{{ shared_link.description }}</p>
+        {% endif %}
+    </div>
+    <div class="col-md-4 text-md-end">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="previousWeekBtn">
+                <i data-feather="chevron-left"></i> Previous Week
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="nextWeekBtn">
+                Next Week <i data-feather="chevron-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Calendar View -->
+    <div class="col-md-8 mb-4">
+        <div class="card bg-dark shadow h-100">
+            <div class="card-header">
+                <h2 class="h5 mb-0">
+                    <i data-feather="calendar" class="me-2"></i>
+                    Available Time Slots
+                </h2>
+            </div>
+            <div class="card-body">
+                <div id="calendar"></div>
+                
+                <!-- Loading indicator -->
+                <div id="loadingIndicator" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading available slots...</p>
+                </div>
+                
+                <!-- No slots message -->
+                <div id="noSlotsMessage" class="text-center py-5" style="display: none;">
+                    <i data-feather="calendar" style="width: 48px; height: 48px;"></i>
+                    <p class="mt-3">No available slots found for the selected date range.</p>
+                    <button type="button" class="btn btn-outline-primary" id="tryAnotherWeekBtn">
+                        <i data-feather="refresh-cw" class="me-2"></i>
+                        Try another week
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Booking Form -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark shadow h-100">
+            <div class="card-header">
+                <h2 class="h5 mb-0">
+                    <i data-feather="clock" class="me-2"></i>
+                    Book an Appointment
+                </h2>
+            </div>
+            <div class="card-body">
+                <div id="bookingFormContainer">
+                    <p class="text-center py-4" id="selectTimeMessage">
+                        <i data-feather="arrow-left" style="width: 24px; height: 24px;"></i>
+                        Select a time slot from the calendar
+                    </p>
+                    
+                    <form id="bookingForm" action="{{ url_for('book_appointment') }}" method="post" style="display: none;">
+                        <input type="hidden" name="link_id" value="{{ shared_link.link_id }}">
+                        <input type="hidden" name="start_time" id="startTimeInput">
+                        <input type="hidden" name="end_time" id="endTimeInput">
+                        
+                        <div class="mb-3">
+                            <label for="selectedSlot" class="form-label">Selected Time Slot</label>
+                            <input type="text" class="form-control" id="selectedSlot" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="customerName" class="form-label">Your Name</label>
+                            <input type="text" class="form-control" id="customerName" name="customer_name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="customerEmail" class="form-label">Your Email</label>
+                            <input type="email" class="form-control" id="customerEmail" name="customer_email" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Meeting Subject</label>
+                            <input type="text" class="form-control" id="subject" name="subject" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Notes (optional)</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i data-feather="check-circle" class="me-2"></i>
+                                Book Appointment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize state
+        let currentStartDate = new Date('{{ start_date.strftime("%Y-%m-%d") }}');
+        let currentEndDate = new Date('{{ end_date.strftime("%Y-%m-%d") }}');
+        let availableSlots = [];
+        
+        // DOM elements
+        const calendarEl = document.getElementById('calendar');
+        const bookingForm = document.getElementById('bookingForm');
+        const selectTimeMessage = document.getElementById('selectTimeMessage');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noSlotsMessage = document.getElementById('noSlotsMessage');
+        const startTimeInput = document.getElementById('startTimeInput');
+        const endTimeInput = document.getElementById('endTimeInput');
+        const selectedSlotInput = document.getElementById('selectedSlot');
+        const previousWeekBtn = document.getElementById('previousWeekBtn');
+        const nextWeekBtn = document.getElementById('nextWeekBtn');
+        const tryAnotherWeekBtn = document.getElementById('tryAnotherWeekBtn');
+        
+        // Initialize FullCalendar
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek',
+            headerToolbar: {
+                left: 'title',
+                center: '',
+                right: 'timeGridDay,timeGridWeek'
+            },
+            allDaySlot: false,
+            slotDuration: '00:30:00',
+            slotLabelInterval: '01:00',
+            slotMinTime: '09:00:00',
+            slotMaxTime: '17:00:00',
+            weekends: false,
+            height: 'auto',
+            eventClick: function(info) {
+                // Handle slot selection
+                const event = info.event;
+                const start = event.start;
+                const end = event.end;
+                
+                // Format for display
+                const options = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                };
+                const formattedStart = start.toLocaleString('en-US', options);
+                const formattedEnd = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                
+                // Update form
+                startTimeInput.value = start.toISOString();
+                endTimeInput.value = end.toISOString();
+                selectedSlotInput.value = `${formattedStart} - ${formattedEnd}`;
+                
+                // Show form, hide message
+                selectTimeMessage.style.display = 'none';
+                bookingForm.style.display = 'block';
+            },
+            eventTimeFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                meridiem: 'short'
+            },
+            themeSystem: 'standard'
+        });
+        
+        // Render the calendar
+        calendar.render();
+        
+        // Load available slots
+        loadAvailableSlots();
+        
+        // Navigation buttons
+        previousWeekBtn.addEventListener('click', function() {
+            currentStartDate.setDate(currentStartDate.getDate() - 7);
+            currentEndDate.setDate(currentEndDate.getDate() - 7);
+            calendar.gotoDate(currentStartDate);
+            loadAvailableSlots();
+        });
+        
+        nextWeekBtn.addEventListener('click', function() {
+            currentStartDate.setDate(currentStartDate.getDate() + 7);
+            currentEndDate.setDate(currentEndDate.getDate() + 7);
+            calendar.gotoDate(currentStartDate);
+            loadAvailableSlots();
+        });
+        
+        tryAnotherWeekBtn.addEventListener('click', function() {
+            currentStartDate.setDate(currentStartDate.getDate() + 7);
+            currentEndDate.setDate(currentEndDate.getDate() + 7);
+            calendar.gotoDate(currentStartDate);
+            loadAvailableSlots();
+        });
+        
+        // Function to load available slots
+        function loadAvailableSlots() {
+            // Clear existing events
+            calendar.removeAllEvents();
+            
+            // Reset form
+            bookingForm.style.display = 'none';
+            selectTimeMessage.style.display = 'block';
+            
+            // Show loading indicator
+            loadingIndicator.style.display = 'block';
+            noSlotsMessage.style.display = 'none';
+            
+            // Format dates for API
+            const startDateStr = currentStartDate.toISOString();
+            const endDateStr = currentEndDate.toISOString();
+            
+            // Fetch available slots
+            fetch(`/api/slots?link_id={{ shared_link.link_id }}&start_date=${startDateStr}&end_date=${endDateStr}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    
+                    if (data.error) {
+                        console.error('Error loading slots:', data.error);
+                        noSlotsMessage.style.display = 'block';
+                        return;
+                    }
+                    
+                    availableSlots = data.slots || [];
+                    
+                    if (availableSlots.length === 0) {
+                        noSlotsMessage.style.display = 'block';
+                        return;
+                    }
+                    
+                    // Add events to calendar
+                    availableSlots.forEach(slot => {
+                        calendar.addEvent({
+                            title: 'Available',
+                            start: slot.formatted_start,
+                            end: slot.formatted_end,
+                            color: '#28a745',
+                            extendedProps: {
+                                duration: slot.duration,
+                                display: slot.display
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching slots:', error);
+                    loadingIndicator.style.display = 'none';
+                    noSlotsMessage.style.display = 'block';
+                });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card bg-dark shadow">
+            <div class="card-body text-center">
+                <h1 class="display-4 mb-4">Welcome to Calendar Sync</h1>
+                <div class="mb-4">
+                    <i data-feather="calendar" style="width: 64px; height: 64px;"></i>
+                </div>
+                <p class="lead">
+                    Synchronize multiple Outlook calendars and share available time slots with your customers.
+                </p>
+                
+                <hr class="my-4">
+                
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <div class="card bg-dark border-secondary mb-4">
+                            <div class="card-body">
+                                <h3 class="card-title">
+                                    <i data-feather="check-circle"></i>
+                                    Key Features
+                                </h3>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item bg-dark text-light">
+                                        <i data-feather="refresh-cw" class="me-2"></i>
+                                        Import and sync multiple Outlook calendars
+                                    </li>
+                                    <li class="list-group-item bg-dark text-light">
+                                        <i data-feather="clock" class="me-2"></i>
+                                        Identify and display free/available time slots across all calendars
+                                    </li>
+                                    <li class="list-group-item bg-dark text-light">
+                                        <i data-feather="share-2" class="me-2"></i>
+                                        Generate shareable links for customers to view available slots
+                                    </li>
+                                    <li class="list-group-item bg-dark text-light">
+                                        <i data-feather="calendar" class="me-2"></i>
+                                        Allow customers to book appointments in free slots
+                                    </li>
+                                    <li class="list-group-item bg-dark text-light">
+                                        <i data-feather="users" class="me-2"></i>
+                                        Create events in original Outlook calendars when bookings are made
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    {% if not session.get('user_id') %}
+                    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4 me-md-2">
+                        <i data-feather="log-in" class="me-2"></i>
+                        Login
+                    </a>
+                    <a href="{{ url_for('register') }}" class="btn btn-outline-secondary btn-lg px-4">
+                        <i data-feather="user-plus" class="me-2"></i>
+                        Register
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg px-4">
+                        <i data-feather="layout" class="me-2"></i>
+                        Go to Dashboard
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
