@@ -1,0 +1,384 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-5">
+            <i data-feather="bar-chart-2" class="me-2"></i>
+            Calendar Analytics
+        </h1>
+        <p class="lead">Analyze your calendar usage and booking statistics</p>
+    </div>
+</div>
+
+<!-- Date Range Filter -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card bg-dark">
+            <div class="card-body">
+                <form id="analytics-filter-form" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="start-date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start-date" name="start_date" 
+                               value="{{ start_date.strftime('%Y-%m-%d') }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="end-date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end-date" name="end_date" 
+                               value="{{ end_date.strftime('%Y-%m-%d') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="calendar-filter" class="form-label">Calendar (Optional)</label>
+                        <select class="form-select" id="calendar-filter" name="calendar_id">
+                            <option value="">All Calendars</option>
+                            {% for calendar in calendars %}
+                            <option value="{{ calendar.id }}" {% if selected_calendar_id == calendar.id %}selected{% endif %}>
+                                {{ calendar.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Calendar Usage Analytics -->
+    <div class="col-lg-6">
+        <div class="card bg-dark h-100">
+            <div class="card-header">
+                <h2 class="h5 mb-0">
+                    <i data-feather="calendar" class="me-2"></i>
+                    Calendar Usage
+                </h2>
+            </div>
+            <div class="card-body">
+                <!-- Busy vs Free Time -->
+                <div class="mb-4">
+                    <h3 class="h6">Time Allocation</h3>
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: {{ calendar_analytics.busy_vs_free.busy }}%;" 
+                             aria-valuenow="{{ calendar_analytics.busy_vs_free.busy }}" 
+                             aria-valuemin="0" aria-valuemax="100">
+                            {{ calendar_analytics.busy_vs_free.busy }}% Busy
+                        </div>
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ calendar_analytics.busy_vs_free.free }}%;" 
+                             aria-valuenow="{{ calendar_analytics.busy_vs_free.free }}" 
+                             aria-valuemin="0" aria-valuemax="100">
+                            {{ calendar_analytics.busy_vs_free.free }}% Available
+                        </div>
+                    </div>
+                    <small class="text-muted">Based on standard working hours (9 AM - 5 PM, weekdays)</small>
+                </div>
+
+                <!-- Events by Calendar -->
+                {% if calendar_analytics.events_by_calendar %}
+                <div class="mb-4">
+                    <h3 class="h6">Events by Calendar</h3>
+                    <div class="chart-container">
+                        <canvas id="events-by-calendar-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Busiest Hours -->
+                {% if calendar_analytics.busiest_hours %}
+                <div class="mb-4">
+                    <h3 class="h6">Busiest Hours</h3>
+                    <div class="chart-container">
+                        <canvas id="busiest-hours-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Free Slot Distribution -->
+                {% if calendar_analytics.free_slot_distribution %}
+                <div>
+                    <h3 class="h6">Free Slot Distribution by Day</h3>
+                    <div class="chart-container">
+                        <canvas id="free-slots-by-day-chart"></canvas>
+                    </div>
+                    <div class="text-center mt-2">
+                        <span class="badge bg-info">Total Free Slots: {{ calendar_analytics.free_slots_count }}</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if not calendar_analytics.events_by_calendar and not calendar_analytics.busiest_hours %}
+                <div class="text-center py-5">
+                    <i data-feather="calendar" style="width: 48px; height: 48px;"></i>
+                    <p class="mt-3">No calendar data available for the selected period.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Analytics -->
+    <div class="col-lg-6">
+        <div class="card bg-dark h-100">
+            <div class="card-header">
+                <h2 class="h5 mb-0">
+                    <i data-feather="users" class="me-2"></i>
+                    Booking Statistics
+                </h2>
+            </div>
+            <div class="card-body">
+                <!-- Summary Stats -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card bg-secondary mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Total Bookings</h5>
+                                <p class="display-4">{{ booking_analytics.total_bookings }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-secondary mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Average Duration</h5>
+                                <p class="display-4">{{ booking_analytics.average_duration }}<small class="text-muted"> min</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bookings by Day -->
+                {% if booking_analytics.bookings_by_day %}
+                <div class="mb-4">
+                    <h3 class="h6">Bookings by Day</h3>
+                    <div class="chart-container">
+                        <canvas id="bookings-by-day-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Bookings by Weekday -->
+                {% if booking_analytics.bookings_by_weekday %}
+                <div class="mb-4">
+                    <h3 class="h6">Bookings by Weekday</h3>
+                    <div class="chart-container">
+                        <canvas id="bookings-by-weekday-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Top Customers -->
+                {% if booking_analytics.top_customers %}
+                <div>
+                    <h3 class="h6">Top Customers</h3>
+                    <ul class="list-group">
+                        {% for customer in booking_analytics.top_customers %}
+                        <li class="list-group-item bg-dark d-flex justify-content-between align-items-center">
+                            <span title="{{ customer.email }}">{{ customer.email }}</span>
+                            <span class="badge bg-primary rounded-pill">{{ customer.count }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if booking_analytics.total_bookings == 0 %}
+                <div class="text-center py-5">
+                    <i data-feather="users" style="width: 48px; height: 48px;"></i>
+                    <p class="mt-3">No booking data available for the selected period.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js global defaults
+    Chart.defaults.color = '#f8f9fa';
+    Chart.defaults.borderColor = '#495057';
+    Chart.defaults.font.family = "'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'";
+    
+    // Events by Calendar Chart
+    {% if calendar_analytics.events_by_calendar %}
+    const calendarLabels = {{ calendar_analytics.events_by_calendar.keys() | list | tojson }};
+    const calendarData = {{ calendar_analytics.events_by_calendar.values() | list | tojson }};
+    
+    new Chart(
+        document.getElementById('events-by-calendar-chart'),
+        {
+            type: 'pie',
+            data: {
+                labels: calendarLabels,
+                datasets: [{
+                    data: calendarData,
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)',
+                        'rgba(255, 159, 64, 0.8)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        }
+    );
+    {% endif %}
+    
+    // Busiest Hours Chart
+    {% if calendar_analytics.busiest_hours %}
+    const hourLabels = {{ calendar_analytics.busiest_hours.keys() | list | tojson }};
+    const hourData = {{ calendar_analytics.busiest_hours.values() | list | tojson }};
+    
+    new Chart(
+        document.getElementById('busiest-hours-chart'),
+        {
+            type: 'bar',
+            data: {
+                labels: hourLabels,
+                datasets: [{
+                    label: 'Event Count',
+                    data: hourData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        }
+    );
+    {% endif %}
+    
+    // Free Slots by Day Chart
+    {% if calendar_analytics.free_slot_distribution %}
+    const freeDayLabels = {{ calendar_analytics.free_slot_distribution.keys() | list | tojson }};
+    const freeDayData = {{ calendar_analytics.free_slot_distribution.values() | list | tojson }};
+    
+    new Chart(
+        document.getElementById('free-slots-by-day-chart'),
+        {
+            type: 'bar',
+            data: {
+                labels: freeDayLabels,
+                datasets: [{
+                    label: 'Available Slots',
+                    data: freeDayData,
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        }
+    );
+    {% endif %}
+    
+    // Bookings by Day Chart
+    {% if booking_analytics.bookings_by_day %}
+    const bookingDayLabels = {{ booking_analytics.bookings_by_day.keys() | list | tojson }};
+    const bookingDayData = {{ booking_analytics.bookings_by_day.values() | list | tojson }};
+    
+    new Chart(
+        document.getElementById('bookings-by-day-chart'),
+        {
+            type: 'line',
+            data: {
+                labels: bookingDayLabels,
+                datasets: [{
+                    label: 'Bookings',
+                    data: bookingDayData,
+                    backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        }
+    );
+    {% endif %}
+    
+    // Bookings by Weekday Chart
+    {% if booking_analytics.bookings_by_weekday %}
+    const weekdayLabels = {{ booking_analytics.bookings_by_weekday.keys() | list | tojson }};
+    const weekdayData = {{ booking_analytics.bookings_by_weekday.values() | list | tojson }};
+    
+    new Chart(
+        document.getElementById('bookings-by-weekday-chart'),
+        {
+            type: 'bar',
+            data: {
+                labels: weekdayLabels,
+                datasets: [{
+                    label: 'Bookings',
+                    data: weekdayData,
+                    backgroundColor: 'rgba(153, 102, 255, 0.7)',
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        }
+    );
+    {% endif %}
+});
+</script>
+{% endblock %}

@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from models import User, Calendar, SharedLink, Booking
 from auth import get_auth_url, get_token_from_code, register_user, login_user
-from calendar_sync import get_calendar_events, get_free_slots, create_booking
+from calendar_sync import get_calendar_events, get_free_slots, create_booking, get_booking_analytics, get_calendar_analytics
 
 def init_routes(app):
     @app.route('/')
@@ -389,6 +389,127 @@ def init_routes(app):
             flash('Failed to remove shared link', 'danger')
         
         return redirect(url_for('dashboard'))
+        
+    @app.route('/analytics')
+    def analytics():
+        """Calendar analytics dashboard"""
+        if 'user_id' not in session:
+            flash('Please log in to view analytics', 'warning')
+            return redirect(url_for('login'))
+        
+        user_id = session['user_id']
+        
+        # Get date range from query parameters or use defaults
+        try:
+            start_date_str = request.args.get('start_date')
+            end_date_str = request.args.get('end_date')
+            
+            if start_date_str:
+                start_date = datetime.fromisoformat(start_date_str)
+            else:
+                # Default to last 30 days
+                start_date = datetime.now() - timedelta(days=30)
+                
+            if end_date_str:
+                end_date = datetime.fromisoformat(end_date_str)
+            else:
+                # Default to current date
+                end_date = datetime.now()
+        except ValueError as e:
+            flash('Invalid date format. Using default range (last 30 days).', 'warning')
+            start_date = datetime.now() - timedelta(days=30)
+            end_date = datetime.now()
+        
+        # Get analytics data
+        calendar_id = request.args.get('calendar_id')
+        if calendar_id:
+            try:
+                calendar_id = int(calendar_id)
+                calendar = Calendar.query.filter_by(id=calendar_id, user_id=user_id).first()
+                if not calendar:
+                    calendar_id = None  # Reset if invalid calendar ID
+            except ValueError:
+                calendar_id = None
+        
+        # Query user's calendars for the filter dropdown
+        calendars = Calendar.query.filter_by(user_id=user_id, active=True).all()
+        
+        # Get analytics data
+        booking_analytics = get_booking_analytics(user_id, start_date, end_date)
+        calendar_analytics = get_calendar_analytics(user_id, calendar_id, start_date, end_date)
+        
+        return render_template('analytics.html',
+                              booking_analytics=booking_analytics,
+                              calendar_analytics=calendar_analytics,
+                              calendars=calendars,
+                              selected_calendar_id=calendar_id,
+                              start_date=start_date,
+                              end_date=end_date)
+    
+    @app.route('/api/analytics/booking', methods=['GET'])
+    def booking_analytics_api():
+        """API endpoint for booking analytics data"""
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_id']
+        
+        # Get date range from query parameters
+        try:
+            start_date_str = request.args.get('start_date')
+            end_date_str = request.args.get('end_date')
+            
+            if start_date_str:
+                start_date = datetime.fromisoformat(start_date_str)
+            else:
+                start_date = None
+                
+            if end_date_str:
+                end_date = datetime.fromisoformat(end_date_str)
+            else:
+                end_date = None
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+        
+        # Get analytics data
+        analytics_data = get_booking_analytics(user_id, start_date, end_date)
+        if analytics_data is None:
+            return jsonify({'error': 'Failed to generate analytics'}), 500
+        
+        return jsonify(analytics_data)
+    
+    @app.route('/api/analytics/calendar', methods=['GET'])
+    def calendar_analytics_api():
+        """API endpoint for calendar analytics data"""
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_id']
+        
+        # Get date range and calendar ID from query parameters
+        try:
+            start_date_str = request.args.get('start_date')
+            end_date_str = request.args.get('end_date')
+            calendar_id_str = request.args.get('calendar_id')
+            
+            start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+            end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+            calendar_id = int(calendar_id_str) if calendar_id_str else None
+            
+            # Verify calendar belongs to user if ID is specified
+            if calendar_id:
+                calendar = Calendar.query.filter_by(id=calendar_id, user_id=user_id).first()
+                if not calendar:
+                    return jsonify({'error': 'Calendar not found or access denied'}), 404
+        except ValueError:
+            return jsonify({'error': 'Invalid parameters'}), 400
+        
+        # Get analytics data
+        analytics_data = get_calendar_analytics(user_id, calendar_id, start_date, end_date)
+        if analytics_data is None:
+            return jsonify({'error': 'Failed to generate analytics'}), 500
+        
+        return jsonify(analytics_data)
 
     @app.errorhandler(404)
     def page_not_found(e):

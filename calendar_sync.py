@@ -2,6 +2,7 @@ import logging
 import requests
 from datetime import datetime, timedelta
 import pytz
+from collections import Counter, defaultdict
 from auth import refresh_calendar_token
 from models import Calendar, Booking, SharedLink
 from app import db
@@ -263,3 +264,250 @@ def create_booking(shared_link_id, customer_name, customer_email, start_time, en
         db.session.rollback()
         logging.error(f"Error creating booking: {e}")
         return None, str(e)
+
+def get_booking_analytics(user_id, start_date=None, end_date=None):
+    """
+    Get analytics data for bookings associated with a user
+    
+    Parameters:
+    - user_id: The ID of the user to get analytics for
+    - start_date: Optional start date for the analytics period
+    - end_date: Optional end date for the analytics period
+    
+    Returns a dictionary containing various analytics metrics
+    """
+    try:
+        # Set default date range if not specified (last 30 days)
+        if not end_date:
+            end_date = datetime.now()
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+            
+        # Query all shared links for the user
+        shared_links = SharedLink.query.filter_by(user_id=user_id, active=True).all()
+        shared_link_ids = [link.id for link in shared_links]
+        
+        if not shared_link_ids:
+            return {
+                "total_bookings": 0,
+                "bookings_by_link": {},
+                "bookings_by_day": {},
+                "bookings_by_hour": {},
+                "bookings_by_weekday": {},
+                "top_customers": [],
+                "average_duration": 0,
+                "start_date": start_date,
+                "end_date": end_date
+            }
+        
+        # Query all bookings for these shared links within the date range
+        bookings = Booking.query.filter(
+            Booking.shared_link_id.in_(shared_link_ids),
+            Booking.start_time >= start_date,
+            Booking.start_time <= end_date
+        ).all()
+        
+        # Initialize analytics metrics
+        total_bookings = len(bookings)
+        bookings_by_link = defaultdict(int)
+        bookings_by_day = defaultdict(int)
+        bookings_by_hour = defaultdict(int)
+        bookings_by_weekday = defaultdict(int)
+        customers = Counter()
+        total_duration = timedelta(0)
+        
+        link_name_map = {link.id: link.name for link in shared_links}
+        
+        # Process each booking to collect metrics
+        for booking in bookings:
+            # Count by shared link
+            link_name = link_name_map.get(booking.shared_link_id, f"Link {booking.shared_link_id}")
+            bookings_by_link[link_name] += 1
+            
+            # Count by day
+            day_key = booking.start_time.strftime('%Y-%m-%d')
+            bookings_by_day[day_key] += 1
+            
+            # Count by hour
+            hour = booking.start_time.hour
+            bookings_by_hour[hour] += 1
+            
+            # Count by weekday
+            weekday = booking.start_time.strftime('%A')
+            bookings_by_weekday[weekday] += 1
+            
+            # Count by customer
+            customers[booking.customer_email] += 1
+            
+            # Add to total duration
+            duration = booking.end_time - booking.start_time
+            total_duration += duration
+        
+        # Calculate averages and prepare final metrics
+        average_duration = total_duration.total_seconds() / total_bookings if total_bookings > 0 else 0
+        average_duration_minutes = average_duration / 60
+        
+        # Get top 5 customers
+        top_customers = [
+            {"email": email, "count": count}
+            for email, count in customers.most_common(5)
+        ]
+        
+        # Sort the day-based metrics chronologically 
+        sorted_days = sorted(bookings_by_day.items())
+        bookings_by_day = {day: count for day, count in sorted_days}
+        
+        # Sort hour-based metrics
+        sorted_hours = sorted(bookings_by_hour.items())
+        bookings_by_hour = {f"{hour}:00": count for hour, count in sorted_hours}
+        
+        # Order weekdays correctly
+        weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        sorted_weekdays = {day: bookings_by_weekday.get(day, 0) for day in weekday_order}
+        
+        return {
+            "total_bookings": total_bookings,
+            "bookings_by_link": dict(bookings_by_link),
+            "bookings_by_day": bookings_by_day,
+            "bookings_by_hour": bookings_by_hour,
+            "bookings_by_weekday": sorted_weekdays,
+            "top_customers": top_customers,
+            "average_duration": round(average_duration_minutes, 1),
+            "start_date": start_date,
+            "end_date": end_date
+        }
+    
+    except Exception as e:
+        logging.error(f"Error generating booking analytics: {e}")
+        return None
+
+def get_calendar_analytics(user_id, calendar_id=None, start_date=None, end_date=None):
+    """
+    Get analytics data for calendar usage
+    
+    Parameters:
+    - user_id: The ID of the user to get analytics for
+    - calendar_id: Optional specific calendar ID to analyze
+    - start_date: Optional start date for the analytics period
+    - end_date: Optional end date for the analytics period
+    
+    Returns a dictionary containing various calendar analytics metrics
+    """
+    try:
+        # Set default date range if not specified (last 30 days)
+        if not end_date:
+            end_date = datetime.now()
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+        
+        # Query calendars
+        calendars_query = Calendar.query.filter_by(user_id=user_id, active=True)
+        if calendar_id:
+            calendars_query = calendars_query.filter_by(id=calendar_id)
+        
+        calendars = calendars_query.all()
+        
+        if not calendars:
+            return {
+                "busy_vs_free": {"busy": 0, "free": 100},
+                "events_by_calendar": {},
+                "busiest_days": {},
+                "busiest_hours": {},
+                "free_slot_distribution": {},
+                "start_date": start_date,
+                "end_date": end_date
+            }
+        
+        calendar_names = {calendar.id: calendar.name for calendar in calendars}
+        
+        # Initialize analytics metrics
+        events_by_calendar = defaultdict(int)
+        events_by_day = defaultdict(int)
+        events_by_hour = defaultdict(int)
+        total_busy_minutes = 0
+        total_possible_minutes = 0
+        free_slots_count = 0
+        
+        # For each calendar, get events
+        for calendar in calendars:
+            events = get_calendar_events(calendar, start_date, end_date)
+            if not events:
+                continue
+                
+            events_by_calendar[calendar_names[calendar.id]] = len(events)
+            
+            # Process each event
+            for event in events:
+                if event['showAs'] in ['busy', 'tentative', 'oof', 'workingElsewhere']:
+                    # Calculate event start and end
+                    event_start = datetime.fromisoformat(event['start']['dateTime'].replace('Z', '+00:00'))
+                    event_end = datetime.fromisoformat(event['end']['dateTime'].replace('Z', '+00:00'))
+                    
+                    # Count by day
+                    day_key = event_start.strftime('%Y-%m-%d')
+                    events_by_day[day_key] += 1
+                    
+                    # Count by hour
+                    hour = event_start.hour
+                    events_by_hour[hour] += 1
+                    
+                    # Calculate duration in minutes
+                    duration = (event_end - event_start).total_seconds() / 60
+                    total_busy_minutes += duration
+        
+        # Calculate free time distribution
+        # Get free slots for all calendars
+        free_slots = get_free_slots(calendars, start_date, end_date)
+        
+        # Count slots by day of week
+        free_slots_by_weekday = defaultdict(int)
+        for slot in free_slots:
+            weekday = slot['start'].strftime('%A')
+            free_slots_by_weekday[weekday] += 1
+            free_slots_count += 1
+        
+        # Calculate total possible working minutes (9am-5pm, weekdays only)
+        working_days = 0
+        current_date = start_date
+        while current_date <= end_date:
+            if current_date.weekday() < 5:  # Weekday (0-4 is Monday-Friday)
+                working_days += 1
+            current_date += timedelta(days=1)
+        
+        # 8 working hours per day
+        total_possible_minutes = working_days * 8 * 60
+        
+        # Calculate busy vs free ratio
+        busy_percentage = (total_busy_minutes / total_possible_minutes * 100) if total_possible_minutes > 0 else 0
+        busy_percentage = min(100, busy_percentage)  # Cap at 100%
+        free_percentage = 100 - busy_percentage
+        
+        # Sort the day-based metrics chronologically 
+        sorted_days = sorted(events_by_day.items())
+        events_by_day = {day: count for day, count in sorted_days}
+        
+        # Sort hour-based metrics
+        sorted_hours = sorted(events_by_hour.items())
+        events_by_hour = {f"{hour}:00": count for hour, count in sorted_hours}
+        
+        # Order weekdays correctly for free slots
+        weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        sorted_free_slots = {day: free_slots_by_weekday.get(day, 0) for day in weekday_order}
+        
+        return {
+            "busy_vs_free": {
+                "busy": round(busy_percentage, 1),
+                "free": round(free_percentage, 1)
+            },
+            "events_by_calendar": dict(events_by_calendar),
+            "busiest_days": events_by_day,
+            "busiest_hours": events_by_hour,
+            "free_slot_distribution": sorted_free_slots,
+            "free_slots_count": free_slots_count,
+            "start_date": start_date,
+            "end_date": end_date
+        }
+        
+    except Exception as e:
+        logging.error(f"Error generating calendar analytics: {e}")
+        return None
