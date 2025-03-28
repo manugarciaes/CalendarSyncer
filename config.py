@@ -1,8 +1,8 @@
 import os
 
 # Microsoft Graph API settings
-MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID")
-MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET")
+MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID", "")
+MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET", "")
 MS_GRAPH_AUTHORITY = "https://login.microsoftonline.com/common"
 MS_GRAPH_SCOPES = [
     "offline_access",

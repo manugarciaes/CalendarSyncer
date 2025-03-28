@@ -9,14 +9,17 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first to leverage Docker cache
+# Create a requirements.txt file from pyproject.toml
 COPY pyproject.toml /app/
+RUN python -c "import re; \
+    content = open('pyproject.toml').read(); \
+    deps = re.findall(r'\"([^\"]+)>=([^\"]+)\"', content); \
+    with open('requirements.txt', 'w') as f: \
+    f.write('\n'.join([pkg + '>=' + ver for pkg, ver in deps]))"
 
 # Install dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install poetry && \
-    poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-ansi
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . /app/
