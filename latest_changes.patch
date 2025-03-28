@@ -1,0 +1,55 @@
+From 5765e9355fabaa360134fe53e3eaebc47f936c4c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Manuel=20Garc=C3=ADa?= <manugarciaes@gmail.com>
+Date: Fri, 28 Mar 2025 16:14:13 +0000
+Subject: [PATCH] Update config.py with default values for MS Graph API
+ settings and adjust Dockerfile
+
+---
+ Dockerfile | 11 +++++++----
+ config.py  |  4 ++--
+ 2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/Dockerfile b/Dockerfile
+index ebffe50..28ccc87 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -9,14 +9,17 @@ RUN apt-get update && apt-get install -y \
+     postgresql-client \
+     && rm -rf /var/lib/apt/lists/*
+ 
+-# Copy requirements first to leverage Docker cache
++# Create a requirements.txt file from pyproject.toml
+ COPY pyproject.toml /app/
++RUN python -c "import re; \
++    content = open('pyproject.toml').read(); \
++    deps = re.findall(r'\"([^\"]+)>=([^\"]+)\"', content); \
++    with open('requirements.txt', 'w') as f: \
++    f.write('\n'.join([pkg + '>=' + ver for pkg, ver in deps]))"
+ 
+ # Install dependencies
+ RUN pip install --no-cache-dir --upgrade pip && \
+-    pip install poetry && \
+-    poetry config virtualenvs.create false && \
+-    poetry install --no-interaction --no-ansi
++    pip install --no-cache-dir -r requirements.txt
+ 
+ # Copy application code
+ COPY . /app/
+diff --git a/config.py b/config.py
+index 2f8c7f8..5b91561 100644
+--- a/config.py
++++ b/config.py
+@@ -1,8 +1,8 @@
+ import os
+ 
+ # Microsoft Graph API settings
+-MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID")
+-MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET")
++MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID", "")
++MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET", "")
+ MS_GRAPH_AUTHORITY = "https://login.microsoftonline.com/common"
+ MS_GRAPH_SCOPES = [
+     "offline_access",
+-- 
+2.47.2
+
