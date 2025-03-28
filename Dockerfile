@@ -15,7 +15,7 @@ RUN python -c "import re; \
     content = open('pyproject.toml').read(); \
     deps = re.findall(r'\"([^\"]+)>=([^\"]+)\"', content); \
     with open('requirements.txt', 'w') as f: \
-    f.write('\n'.join([pkg + '>=' + ver for pkg, ver in deps]))"
+        f.write('\n'.join([pkg + '>=' + ver for pkg, ver in deps]))"
 
 # Install dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
