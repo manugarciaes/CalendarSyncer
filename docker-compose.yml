@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  webapp:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://calendar_sync:calendar_sync_password@db:5432/calendar_sync
+      - SESSION_SECRET=your_secure_session_secret_change_in_production
+      - FLASK_ENV=development
+      - FLASK_APP=main.py
+      - POSTGRES_USER=calendar_sync
+      - POSTGRES_PASSWORD=calendar_sync_password
+      - POSTGRES_DB=calendar_sync
+      # Microsoft Graph API settings (add your own values in production)
+      - MS_GRAPH_CLIENT_ID=
+      - MS_GRAPH_CLIENT_SECRET=
+      - REDIRECT_URI=http://localhost:5000/auth/callback
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    restart: always
+    networks:
+      - calendar-network
+
+  db:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=calendar_sync
+      - POSTGRES_PASSWORD=calendar_sync_password
+      - POSTGRES_DB=calendar_sync
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - calendar-network
+
+networks:
+  calendar-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

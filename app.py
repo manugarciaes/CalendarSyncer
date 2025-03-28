@@ -27,8 +27,10 @@ app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_USE_SIGNER"] = True
 
-# Configure the SQLite database
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///calendar_sync.db"
+# Configure database connection
+# Use PostgreSQL if DATABASE_URL is set (Docker environment), otherwise use SQLite
+database_url = os.environ.get("DATABASE_URL", "sqlite:///calendar_sync.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
